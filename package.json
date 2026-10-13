@@ -52,6 +52,7 @@
   },
   "scripts": {
     "init": "node scripts/init.mjs",
+    "test:template": "node --test scripts/variants/tests/*.test.mjs",
     "clean": "node scripts/clean.mjs",
     "build": "node scripts/build.mjs",
     "test": "node scripts/test.mjs",

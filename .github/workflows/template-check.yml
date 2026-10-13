@@ -37,6 +37,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Negative tests for check-package
+        if: matrix.language == 'ts' && matrix.browser == 'false'
+        run: |
+          npm run build
+          npm run test:template
       - name: Initialise a package from the template
         run: >
           node scripts/init.mjs --yes --name "@example/sample-lib" --owner example

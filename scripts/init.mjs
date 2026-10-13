@@ -182,6 +182,7 @@ async function main() {
   pkg.keywords = [];
   pkg.engines.node = `>=${answers.nodeMin}`;
   delete pkg.scripts.init;
+  delete pkg.scripts["test:template"];
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 
   cpSync(path.join(root, "scripts", "variants", "README.package.md"), path.join(root, "README.md"));
