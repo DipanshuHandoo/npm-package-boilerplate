@@ -45,6 +45,8 @@ Run without flags for interactive prompts. Options:
 for your package, adds an initial changeset, regenerates the lockfile, then removes itself and
 all template-only files. Then replace `src/`, `docs/`, `examples/` with your package, run
 `npm run verify`, and finish the one-time setup in [MAINTAINING.md](MAINTAINING.md).
+Template-level setup and the release-pipeline test steps are in
+[template-docs/setup-and-release-test.md](template-docs/setup-and-release-test.md).
 
 The template is itself tested: `.github/workflows/template-check.yml` initialises every variant
 and runs `npm run verify`.

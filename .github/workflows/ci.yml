@@ -47,14 +47,14 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Require a changeset when src/ changes
+      - name: Require a changeset when shipped files change
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
           changed=$(git diff --name-only "origin/${BASE_REF}...HEAD")
-          if echo "$changed" | grep -q '^src/'; then
+          if echo "$changed" | grep -Eq '^(src/|docs/|README\.md$)'; then
             if ! echo "$changed" | grep -Eq '^\.changeset/.+\.md$' ; then
-              echo "::error::src/ changed but no changeset was added. Run 'npm run changeset'."
+              echo "::error::Shipped files changed (src/, docs/ or README.md) but no changeset was added. Run 'npm run changeset' (use 'npm run changeset -- --empty' for changes that need no release)."
               exit 1
             fi
           fi
