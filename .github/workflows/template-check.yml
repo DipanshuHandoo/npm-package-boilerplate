@@ -1,0 +1,48 @@
+name: Template check
+
+# Template-repository only (removed by `npm run init`): proves every init variant produces a
+# package that passes `npm run verify`.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: template-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  variant:
+    name: init ${{ matrix.language }}${{ matrix.browser == 'true' && ' + browser' || '' }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, language: ts, browser: "false" }
+          - { os: ubuntu-latest, language: js, browser: "false" }
+          - { os: ubuntu-latest, language: ts, browser: "true" }
+          - { os: windows-latest, language: js, browser: "false" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Initialise a package from the template
+        run: >
+          node scripts/init.mjs --yes --name "@example/sample-lib" --owner example
+          --repo example/sample-lib --description "Sample" --author "Example Dev"
+          --language ${{ matrix.language }} --browser ${{ matrix.browser }}
+      - name: Install Chromium
+        if: matrix.browser == 'true'
+        run: npx playwright install --with-deps chromium
+      - run: npm run verify

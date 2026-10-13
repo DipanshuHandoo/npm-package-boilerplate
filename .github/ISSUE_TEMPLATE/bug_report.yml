@@ -1,0 +1,30 @@
+name: Bug report
+description: Report incorrect behavior
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime and OS
+      placeholder: Node 24.1.0, Windows 11
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Code or a repository that reproduces the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual behavior
+    validations:
+      required: true

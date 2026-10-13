@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify (${{ matrix.os }}, node ${{ matrix.node-version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node-version: [22, 24]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium (browser-enabled packages only)
+        if: hashFiles('scripts/check-browser.mjs') != ''
+        run: npx playwright install --with-deps chromium
+      - run: npm run verify
+
+  changeset:
+    name: changeset present
+    if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'changeset-release/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require a changeset when src/ changes
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          changed=$(git diff --name-only "origin/${BASE_REF}...HEAD")
+          if echo "$changed" | grep -q '^src/'; then
+            if ! echo "$changed" | grep -Eq '^\.changeset/.+\.md$' ; then
+              echo "::error::src/ changed but no changeset was added. Run 'npm run changeset'."
+              exit 1
+            fi
+          fi
+
+  audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: npm audit --audit-level=high

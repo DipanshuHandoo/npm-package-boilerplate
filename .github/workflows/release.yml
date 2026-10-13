@@ -1,0 +1,176 @@
+name: Release
+
+# Manual only. Publishing requires approval on the "npm" environment and uses npm trusted
+# publishing (GitHub OIDC) with provenance; no long-lived npm token is used.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm-version:
+        description: "Version to publish. Must equal package.json version at the selected commit."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: verify release candidate
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      name: ${{ steps.meta.outputs.name }}
+      version: ${{ steps.meta.outputs.version }}
+      dist-tag: ${{ steps.meta.outputs.dist-tag }}
+      tarball: ${{ steps.pack.outputs.tarball }}
+      sha256: ${{ steps.pack.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Require a green CI run for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          passed=$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --status success --json conclusion --jq length)
+          if [ "$passed" = "0" ]; then
+            echo "::error::No successful CI run found for $GITHUB_SHA"
+            exit 1
+          fi
+      - name: Release preflight (version, lockfile, changelog, registry)
+        env:
+          CONFIRM_VERSION: ${{ inputs.confirm-version }}
+        run: node scripts/release.mjs --ci --expect-version "$CONFIRM_VERSION"
+      - id: meta
+        run: |
+          echo "name=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "dist-tag=$(node scripts/release.mjs --print-dist-tag)" >> "$GITHUB_OUTPUT"
+      - name: Install Chromium (browser-enabled packages only)
+        if: hashFiles('scripts/check-browser.mjs') != ''
+        run: npx playwright install --with-deps chromium
+      - run: npm run verify
+      - id: pack
+        run: |
+          mkdir release-artifact
+          npm pack --ignore-scripts --pack-destination release-artifact >/dev/null
+          file=$(ls release-artifact)
+          echo "tarball=$file" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum "release-artifact/$file" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-tarball
+          path: release-artifact/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: publish to npm
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Ensure npm supports trusted publishing (>= 11.5.1)
+        run: |
+          current=$(npm --version)
+          if [ "$(printf '%s\n' 11.5.1 "$current" | sort -V | head -n1)" != "11.5.1" ]; then
+            npm install -g npm@^11.5.1
+          fi
+          npm --version
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-tarball
+          path: release-artifact
+      - name: Verify the artifact is the one that was verified
+        env:
+          TARBALL: ${{ needs.verify.outputs.tarball }}
+          EXPECTED: ${{ needs.verify.outputs.sha256 }}
+        run: |
+          actual=$(sha256sum "release-artifact/$TARBALL" | cut -d' ' -f1)
+          [ "$actual" = "$EXPECTED" ] || { echo "::error::Tarball checksum mismatch"; exit 1; }
+      - name: Re-check the registry immediately before publishing
+        env:
+          CONFIRM_VERSION: ${{ inputs.confirm-version }}
+        run: node scripts/release.mjs --ci --expect-version "$CONFIRM_VERSION"
+      - name: Publish
+        env:
+          TARBALL: ${{ needs.verify.outputs.tarball }}
+          DIST_TAG: ${{ needs.verify.outputs.dist-tag }}
+        run: npm publish "release-artifact/$TARBALL" --tag "$DIST_TAG" --access public --provenance
+
+  finalize:
+    name: tag and GitHub release
+    needs: [verify, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Confirm the published version and dist-tag
+        env:
+          NAME: ${{ needs.verify.outputs.name }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          DIST_TAG: ${{ needs.verify.outputs.dist-tag }}
+        run: |
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            tag_version=$(npm view "$NAME" "dist-tags.$DIST_TAG" 2>/dev/null || true)
+            if [ "$tag_version" = "$VERSION" ]; then
+              echo "Published $NAME@$VERSION on dist-tag '$DIST_TAG'" | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::$NAME@$VERSION not visible on dist-tag '$DIST_TAG' yet. The publish step succeeded; do NOT republish. Re-run this job once the registry catches up."
+          exit 1
+      - name: Create tag and GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          DIST_TAG: ${{ needs.verify.outputs.dist-tag }}
+        run: |
+          tag="v$VERSION"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            git fetch --depth=1 origin "refs/tags/$tag:refs/tags/$tag"
+            if [ "$(git rev-list -n1 "$tag")" != "$GITHUB_SHA" ]; then
+              echo "::error::Tag $tag already exists on a different commit. Not retagging."
+              exit 1
+            fi
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; nothing to do."
+            exit 0
+          fi
+          node scripts/release.mjs --notes > release-notes.md
+          flags=""
+          [ "$DIST_TAG" = "next" ] && flags="--prerelease"
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes-file release-notes.md $flags

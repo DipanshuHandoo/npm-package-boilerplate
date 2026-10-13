@@ -1,0 +1,81 @@
+{
+  "name": "npm-package-boilerplate",
+  "version": "0.0.0",
+  "description": "Production-grade boilerplate for building, verifying and releasing npm packages.",
+  "keywords": [
+    "npm",
+    "boilerplate",
+    "template",
+    "retry"
+  ],
+  "license": "MIT",
+  "author": "Dipanshu Handoo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DipanshuHandoo/npm-package-boilerplate.git"
+  },
+  "homepage": "https://github.com/DipanshuHandoo/npm-package-boilerplate#readme",
+  "bugs": {
+    "url": "https://github.com/DipanshuHandoo/npm-package-boilerplate/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "init": "node scripts/init.mjs",
+    "clean": "node scripts/clean.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/test.mjs",
+    "test:coverage": "node scripts/test.mjs --coverage",
+    "lint": "node scripts/run.mjs --bin @biomejs/biome biome lint --error-on-warnings .",
+    "format": "node scripts/run.mjs --bin @biomejs/biome biome format --write .",
+    "format:check": "node scripts/run.mjs --bin @biomejs/biome biome format .",
+    "typecheck": "node scripts/run.mjs --bin typescript tsc -p tsconfig.json --noEmit",
+    "test:package": "node scripts/check-package.mjs",
+    "verify": "node scripts/verify.mjs",
+    "pack:check": "node scripts/check-package.mjs --pack-only",
+    "publish:dry": "npm publish --dry-run --provenance=false",
+    "release": "node scripts/release.mjs",
+    "changeset": "changeset",
+    "version": "changeset version && npm install --package-lock-only --ignore-scripts",
+    "prepublishOnly": "node scripts/release.mjs --prepublish-guard"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@biomejs/biome": "^2.5.15",
+    "@changesets/cli": "^3.0.3",
+    "@types/node": "^22.20.5",
+    "esbuild": "^0.28.2",
+    "publint": "^0.3.25",
+    "typescript": "^7.0.2"
+  }
+}
