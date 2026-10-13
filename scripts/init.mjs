@@ -215,6 +215,7 @@ async function main() {
 
   log("Removing template-only files");
   rmSync(path.join(root, "scripts", "variants"), { recursive: true, force: true });
+  rmSync(path.join(root, "template-docs"), { recursive: true, force: true });
   rmSync(path.join(root, ".github", "workflows", "template-check.yml"), { force: true });
 
   if (!args["no-install"]) {
