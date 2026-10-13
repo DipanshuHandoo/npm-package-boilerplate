@@ -1,6 +1,6 @@
 {
   "name": "npm-package-boilerplate",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Production-grade boilerplate for building, verifying and releasing npm packages.",
   "keywords": [
     "npm",
