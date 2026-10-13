@@ -11,7 +11,8 @@ Requires Node.js >= 22.18.0 (see `.nvmrc`).
 ## Workflow
 
 1. Branch from `main`.
-2. Make the change with tests. Test public behavior, error paths and cleanup.
+2. Make the change with tests. Test public behavior, error paths and cleanup. Follow the layout
+   and dependency rules in `ARCHITECTURE.md`.
 3. Run `npm run verify` (clean, typecheck, lint, format check, coverage, build, packed-package
    checks). It must pass before opening a PR.
 4. Add a changeset for user-facing changes: `npm run changeset`.

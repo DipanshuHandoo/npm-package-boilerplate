@@ -63,6 +63,8 @@ docs/ examples/      shipped docs; runnable examples that import the public pack
 boilerplate.config.json   language, browser, entries, build targets, size budget, coverage gates
 ```
 
+How to grow `src/` (utils, services, infrastructure) is in [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## Commands
 
 | Command | Responsibility |
