@@ -14,7 +14,9 @@ flowchart LR
   F --> G[verify] --> H[approve in npm environment] --> I[publish] --> J[tag + GitHub release]
 ```
 
-1. Contributors add a changeset (`npm run changeset`) with each user-facing change.
+1. Contributors add a changeset (`npm run changeset`) with each user-facing change. CI fails a
+   PR that changes `src/`, `docs/` or `README.md` without one; use `npm run changeset -- --empty`
+   to opt out deliberately. Make `changeset present` a required check (see setup below).
 2. Merging to `main` makes `version.yml` open/update a **Version Packages** PR (bumps
    `package.json` and the lockfile, writes `CHANGELOG.md`).
 3. Merge that PR when you want to release.
