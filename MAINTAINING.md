@@ -35,6 +35,19 @@ flowchart LR
 6. If publishing succeeded but the final job failed, **do not republish**. Re-run only the
    failed `finalize` job; it refuses to move an existing tag.
 
+### Local release (first publish, or when Actions/OIDC is not set up)
+
+`npm run release:local` (after merging the Version Packages PR and `git pull`) runs on the
+default branch only and: requires a clean tree identical to `origin/<default>`, runs the
+preflight and `npm run verify`, runs `npm login --auth-type=web` (browser) if `npm whoami`
+fails, asks you to type the version, publishes (`latest`/`next`, no provenance since that needs
+CI), then pushes the `vX.Y.Z` tag with git and creates the GitHub release with `gh`. If `gh` is
+logged in as a different account it prints the notes and a prefilled "new release" URL instead.
+Direct `npm publish` stays blocked by `prepublishOnly`.
+
+Do the first publish of a new package this way, then configure the trusted publisher below so
+later releases can use the workflow.
+
 Prereleases: `npx changeset pre enter next` ... `npx changeset pre exit`.
 
 ## One-time setup per package (not done by code)

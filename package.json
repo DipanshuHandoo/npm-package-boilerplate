@@ -47,8 +47,7 @@
     "node": ">=22.18.0"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "scripts": {
     "init": "node scripts/init.mjs",
@@ -66,6 +65,7 @@
     "pack:check": "node scripts/check-package.mjs --pack-only",
     "publish:dry": "npm publish --dry-run --provenance=false",
     "release": "node scripts/release.mjs",
+    "release:local": "node scripts/release.mjs --local",
     "changeset": "changeset",
     "version": "changeset version && npm install --package-lock-only --ignore-scripts",
     "prepublishOnly": "node scripts/release.mjs --prepublish-guard"
